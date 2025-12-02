@@ -1,0 +1,164 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 300px;
+                 background-color: #0E1117;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#cccccc", "font": {"color": "white"}, "id": "www.cloudflare.com", "label": "www.cloudflare.", "shape": "dot", "size": 15, "title": "[Risk]\nWAF:[\u0027cloudflare\u0027]"}, {"color": "#00ffff", "font": {"color": "white"}, "id": "http://testphp.vulnweb.com", "label": "http://testphp.", "shape": "dot", "size": 15, "title": "[Fingerprint]\nAdobe-Flash (Rule)"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://medio.co.id", "label": "https://medio.c", "shape": "dot", "size": 15, "title": "[Asset]\nIP:117.53.153.240 Code:403"}, {"color": "#ffff00", "font": {"color": "white"}, "id": "45.33.32.156", "label": "45.33.32.156", "shape": "dot", "size": 15, "title": "[Port]\n22/tcp -\u003e ssh OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.13 (Ubuntu Linux; protocol 2.0)"}, {"color": "#ffff00", "font": {"color": "white"}, "id": "44.228.249.3", "label": "44.228.249.3", "shape": "dot", "size": 15, "title": "[Port]\n80/tcp -\u003e http nginx 1.19.0"}, {"color": "#ff0000", "font": {"color": "white"}, "id": "test.rebex.net", "label": "test.rebex.net", "shape": "dot", "size": 15, "title": "[Crack]\n[22][ssh] host: test.rebex.net   login: demo   password: password"}, {"color": "#ff00ff", "font": {"color": "white"}, "id": "http://zero.webappsecurity.com", "label": "http://zero.web", "shape": "dot", "size": 15, "title": "[Vuln]\n[waf-detect:apachegeneric] [http] [info] http://zero.webappsecurity.com"}, {"color": "#ff00ff", "font": {"color": "white"}, "id": "http://testphp.vulnweb.com/artists.php?artist=1", "label": "http://testphp.", "shape": "dot", "size": 15, "title": "[Vuln]\nSQL Injection"}, {"color": "#ffff00", "font": {"color": "white"}, "id": "127.0.0.1", "label": "127.0.0.1", "shape": "dot", "size": 15, "title": "[Port]\n3306/MySQL"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://48jixhh.top", "label": "http://48jixhh.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:63.250.38.173 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://ai-jd.vip", "label": "https://ai-jd.v", "shape": "dot", "size": 15, "title": "[Asset]\nIP:115.190.140.193 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://shibablack.xyz", "label": "http://shibabla", "shape": "dot", "size": 15, "title": "[Asset]\nIP:172.67.149.250 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://shibablack.xyz", "label": "https://shibabl", "shape": "dot", "size": 15, "title": "[Asset]\nIP:172.67.149.250 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://temaofisi.site", "label": "https://temaofi", "shape": "dot", "size": 15, "title": "[Asset]\nIP:66.29.146.94 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://medio.co.id", "label": "http://medio.co", "shape": "dot", "size": 15, "title": "[Asset]\nIP:117.53.153.240 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://51.20.255.56", "label": "http://51.20.25", "shape": "dot", "size": 15, "title": "[Asset]\nIP:51.20.255.56 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://alittlehelpthemovie.com", "label": "https://alittle", "shape": "dot", "size": 15, "title": "[Asset]\nIP:104.201.35.226 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://bulanan.biz.id", "label": "http://bulanan.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:172.67.177.219 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://chillguymeme.xyz", "label": "https://chillgu", "shape": "dot", "size": 15, "title": "[Asset]\nIP:104.21.15.8 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://chillguymeme.xyz", "label": "http://chillguy", "shape": "dot", "size": 15, "title": "[Asset]\nIP:172.67.160.250 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://115.190.140.193", "label": "https://115.190", "shape": "dot", "size": 15, "title": "[Asset]\nIP:115.190.140.193 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://bitcoinetfnews.xyz", "label": "http://bitcoine", "shape": "dot", "size": 15, "title": "[Asset]\nIP:104.21.51.137 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://bitcoinetfnews.xyz", "label": "https://bitcoin", "shape": "dot", "size": 15, "title": "[Asset]\nIP:172.67.181.38 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://gmsustainablity.com", "label": "http://gmsustai", "shape": "dot", "size": 15, "title": "[Asset]\nIP:94.72.121.206 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://gmsustainablity.com", "label": "https://gmsusta", "shape": "dot", "size": 15, "title": "[Asset]\nIP:94.72.121.206 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://185.197.194.115:8081", "label": "http://185.197.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:185.197.194.115 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://115.190.140.193", "label": "http://115.190.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:115.190.140.193 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "testphp.vulnweb.com", "label": "testphp.vulnweb", "shape": "dot", "size": 15, "title": "[Risk]\nWAF:[\u0027nginx\u0027]"}, {"color": "#00ffff", "font": {"color": "white"}, "id": "http://39.97.32.197", "label": "http://39.97.32", "shape": "dot", "size": 15, "title": "[Fingerprint]\ngoogle-analytics (Rule)"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://tju.edu.cn", "label": "http://tju.edu.", "shape": "dot", "size": 15, "title": "[Trace]\nIconHash: 185612706"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://219.243.39.70:8080", "label": "https://219.243", "shape": "dot", "size": 15, "title": "[Asset]\nIP:219.243.39.70 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://libdb.ucass.edu.cn", "label": "https://libdb.u", "shape": "dot", "size": 15, "title": "[Asset]\nIP:118.228.246.112 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://skle.tju.edu.cn", "label": "http://skle.tju", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.2.198 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://libvpn.gdufs.edu.cn", "label": "https://libvpn.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.116.196.186 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://libvpn.zuel.edu.cn", "label": "https://libvpn.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.114.238.230 Code:200"}, {"color": "#00ffff", "font": {"color": "white"}, "id": "http://lsfz.tju.edu.cn", "label": "http://lsfz.tju", "shape": "dot", "size": 15, "title": "[Fingerprint]\nEasyUI (Rule), vue\u6846\u67b6 (Rule), jquery (Rule), Microsoft(ISA Server) (Rule), yui (Rule)"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://afcba7887ad1d28f444b4sx0f505qq5okb6cvkfbhy.eds.tju.edu.cn", "label": "https://afcba78", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.6.200 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://afffg9e0cb446b982495asn0wx0x9cp5066vfufgfy.eds.tju.edu.cn", "label": "https://afffg9e", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.6.200 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://fiiz.ai.eds.tju.edu.cn", "label": "https://fiiz.ai", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.6.200 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://afbfh253cb3a601b84ef2sqoxpqpbbu6ck66bofgac.eds.tju.edu.cn", "label": "http://afbfh253", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.6.200 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://a.app.eds.tju.edu.cn", "label": "http://a.app.ed", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.6.200 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://afffgc1d129f57bb244a4snww9cc9qx9fv6wcpfgfy.eds.tju.edu.cn", "label": "https://afffgc1", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.6.200 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "http://afyhfce588b0058434e6fsobq9w6ou5v6b6fqnfbya.eds.tju.edu.cn", "label": "http://afyhfce5", "shape": "dot", "size": 15, "title": "[Asset]\nIP:202.113.6.200 Code:403"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://libvpn.cwu.edu.cn", "label": "https://libvpn.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:219.242.31.180 Code:200"}, {"color": "#cccccc", "font": {"color": "white"}, "id": "https://101.43.206.240", "label": "https://101.43.", "shape": "dot", "size": 15, "title": "[Asset]\nIP:101.43.206.240 Code:200"}]);
+                  edges = new vis.DataSet([]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "forceAtlas2Based": {
+            "avoidOverlap": 0,
+            "centralGravity": 0.01,
+            "damping": 0.4,
+            "gravitationalConstant": -50,
+            "springConstant": 0.08,
+            "springLength": 100
+        },
+        "solver": "forceAtlas2Based",
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>

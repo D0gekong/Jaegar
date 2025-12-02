@@ -1,0 +1,13 @@
+streamlit
+pyvis
+openai
+python-dotenv
+httpx
+requests
+dnspython
+chromadb
+duckduckgo-search
+webtech
+mmh3
+mcp
+pandas

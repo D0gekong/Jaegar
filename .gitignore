@@ -1,0 +1,34 @@
+# 1. 忽略环境配置与密钥 (绝对不能上传！)
+.env
+.env.local
+
+# 2. 忽略 Python 缓存与虚拟环境
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# 3. 忽略本地数据 (保护隐私)
+assets.db
+chroma_db/
+*.log
+
+# 4. 忽略生成的报告 (太大且无用)
+report_*.md
+dirsearch_temp.json
+
+# 5. 忽略二进制工具 (GitHub 不适合传 exe，且可能报毒)
+# 我们只保留文件夹结构，不传 exe 文件
+tools/*.exe
+tools/*.zip
+tools/hydra/*.dll
+tools/hydra/*.exe
+tools/sqlmap/*.pyc
+
+# 6. 忽略 Nuclei 的庞大模板库 (用户自己下载)
+tools/nuclei-templates/
+
+# 7. 忽略系统文件
+.DS_Store
+Thumbs.db

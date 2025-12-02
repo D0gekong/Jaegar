@@ -1,0 +1,26 @@
+{
+  "servers": [
+    {
+      "name": "jaegar-ultimate-final",
+      "params": {
+        "command": "uv",
+        "args": [
+          "run",
+          "--with", "httpx",
+          "--with", "requests",
+          "--with", "dnspython",
+          "--with", "mcp",
+          "--with", "duckduckgo_search",
+          "--with", "chromadb",
+          "--with", "mmh3",
+          "servers/smart_fofa.py"
+        ],
+        "env": {
+            "PYTHONIOENCODING": "utf-8",
+            "FOFA_KEY": "01fa0bedea62e5117b3bd41f8d6fa0de"
+        }
+      },
+      "cache_tools_list": true
+    }
+  ]
+}

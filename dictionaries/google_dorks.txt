@@ -1,0 +1,4 @@
+site:TARGET filetype:pdf
+site:TARGET filetype:docx
+site:TARGET inurl:admin
+site:TARGET intitle:"index of /"

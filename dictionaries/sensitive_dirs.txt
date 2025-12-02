@@ -1,0 +1,6 @@
+/.git/config
+/.env
+/backup.zip
+/admin/
+/robots.txt
+/sitemap.xml

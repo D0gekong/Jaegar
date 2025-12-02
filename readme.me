@@ -1,0 +1,198 @@
+# 🦅 Jaegar (Jaegar-Ultimate)
+
+
+
+**Jaegar** 是一个基于 **LLM (大语言模型)** 驱动的全栈式红队自动化侦察与渗透系统。
+
+不同于传统的“一把梭”扫描器，Jaegar 具备 **AI 思维**。它利用 **MCP 协议** 和 **RAG (检索增强生成)** 技术，能够理解自然语言指令（如“对目标进行全流程侦察”），并根据目标特征智能调度底层的 13 种安全工具，实现从**信息搜集**、**资产溯源**到**漏洞利用**的自动化闭环。
+
+
+
+## ✨ 核心特性
+
+
+
+
+
+### 🧠 三位一体架构
+
+
+
+- **AI 中控**：基于 OpenAI/DeepSeek 模型，理解意图，动态决策。
+- **RAG 大脑**：内置 `ChromaDB` 向量数据库，存储 Google/FOFA 攻击语法与指纹特征，支持模糊推测。
+- **规则引擎**：移植经典的 `TideFinger` 逻辑，支持复杂的指纹匹配与主动探测。
+
+
+
+### ⚔️ 13 大实战工具 (MCP Tools)
+
+
+
+| **阶段**   | **工具名称**    | **核心能力**                                                 |
+| ---------- | --------------- | ------------------------------------------------------------ |
+| 🛡️ **风控** | `Check Risk`    | 识别 CDN (Cloudflare)、WAF 防火墙、泛解析，防止无效扫描。    |
+| 🕵️ **情报** | `Google Intel`  | **RAG增强**：自动检索最佳 Google Dorks，挖掘敏感文件/后台。  |
+| 🌐 **资产** | `FOFA Search`   | 对接 FOFA API，自动去重并验证资产存活。                      |
+| 👆 **指纹** | `Tide Finger`   | **双引擎**：TideFinger 规则库硬匹配 + RAG 特征模糊推测。     |
+| 🔌 **端口** | `Port Scan`     | Python 原生 Socket 并发扫描 Top 30+ 高危端口及服务。         |
+| 🔬 **挖掘** | `JS Finder`     | 爬取页面 JS 文件，正则提取手机号、AK/SK 密钥、内网 IP。      |
+| 👁️ **溯源** | `Trace Real IP` | 计算 **Favicon Hash** 和提取 **SSL 序列号**，穿透 CDN 寻找源站。 |
+| 🛣️ **路由** | `Special Route` | 探测若依、Spring Boot、Swagger 等隐藏 API 路径。             |
+| ☢️ **漏扫** | `Nuclei`        | 调用 **Nuclei** 进行综合漏洞扫描（支持指纹定向扫描）。       |
+| 💥 **爆破** | `Hydra`         | 调用 **Hydra** 对 SSH/MySQL/Redis 等服务进行弱口令爆破。     |
+| 📂 **目录** | `Dir Scan`      | 原生 Python 高并发目录枚举，无需外部依赖。                   |
+| 💉 **注入** | `SQLMap`        | 调用 **SQLMap** 进行深度 SQL 注入检测与利用。                |
+| 📝 **报告** | `Report`        | 自动生成 Markdown 报告，并推送 **钉钉/飞书** 通知。          |
+
+------
+
+
+
+## 📂 目录结构
+
+
+
+Plaintext
+
+```
+FlySec/
+├── .env                     # [配置] API Key, FOFA Key, Webhook
+├── web_app.py               # [启动] Streamlit Web 交互界面
+├── main.py                  # [启动] 命令行 CLI 界面
+├── assets.db                # [数据] SQLite 资产数据库
+├── servers/
+│   └── smart_fofa.py        # [核心] 集成所有工具的全能引擎
+├── tools/                   # [外挂] 第三方工具箱
+│   ├── nuclei.exe           # 漏洞扫描器
+│   ├── nuclei-templates/    # Nuclei 漏洞模板
+│   ├── sqlmap/              # SQLMap 源码
+│   └── hydra/               # Hydra 及依赖 DLL
+├── fingerprints/            # [指纹]
+│   └── cms_finger.db        # TideFinger 规则库
+├── knowledge_base_docs/     # [知识] RAG 知识库 (Markdown)
+└── chroma_db/               # [缓存] 向量数据库
+```
+
+------
+
+
+
+## 🛠️ 安装与部署
+
+
+
+
+
+### 1. 环境准备
+
+
+
+确保安装 Python 3.10+，并安装依赖库：
+
+Bash
+
+```
+pip install streamlit pyvis openai python-dotenv httpx requests dnspython chromadb duckduckgo_search webtech mmh3
+```
+
+
+
+### 2. 工具配置 (至关重要)
+
+
+
+请确保 `tools/` 目录下包含以下工具（需自行下载）：
+
+- **Nuclei**: 放入 `tools/nuclei.exe`，并下载模板到 `tools/nuclei-templates`。
+- **Hydra**: 解压放入 `tools/hydra/` (包含 `.dll` 文件)。
+- **SQLMap**: 源码放入 `tools/sqlmap/` (包含 `sqlmap.py`)。
+
+
+
+### 3. 配置文件 (.env)
+
+
+
+在根目录创建 `.env` 文件：
+
+Ini, TOML
+
+```
+# 大模型配置 (支持 OpenAI / DeepSeek)
+API_KEY=sk-xxxxxxxxxxxxxxxxxxxx
+BASE_URL=https://api.deepseek.com
+MODEL_NAME=deepseek-chat
+
+# 资产搜集配置
+FOFA_KEY=xxxxxxxxxxxxxxxxxxxx
+
+# 消息推送 (可选，支持钉钉/飞书)
+WEBHOOK_URL=https://oapi.dingtalk.com/robot/send?access_token=xxxx
+```
+
+------
+
+
+
+## 🚀 使用指南
+
+
+
+
+
+### 方式一：Web 态势感知终端 (推荐)
+
+
+
+提供可视化拓扑图和类似 ChatGPT 的交互体验。
+
+Bash
+
+```
+streamlit run web_app.py
+```
+
+- **访问地址**: `http://localhost:8501`
+- **局域网共享**: 局域网内其他设备也可访问。
+
+
+
+### 方式二：极客命令行 (CLI)
+
+
+
+适合服务器环境或快速测试。
+
+Bash
+
+```
+python main.py
+```
+
+
+
+### 💬 指令示例
+
+
+
+你可以像这就跟 AI 说话：
+
+- **全流程**：`"对 testphp.vulnweb.com 进行全流程侦察"`
+- **指纹驱动**：`"识别 target.com 的指纹，如果是 ThinkPHP 就用 Nuclei 扫一下"`
+- **精准打击**：`"用 Hydra 爆破 192.168.1.5 的 MySQL 服务"`
+- **深度挖掘**：`"对这个网站进行 JS 敏感信息挖掘"`
+- **生成报告**：`"生成最终报告"`
+
+------
+
+
+
+## ⚠️ 免责声明
+
+
+
+本工具 (**Jaegar**) 仅供**网络安全研究**和**授权渗透测试**使用。
+
+1. 请勿使用本工具扫描任何未经授权的目标。
+2. 使用者需对使用本工具产生的所有后果负责。
+3. 开发者不承担任何因滥用本工具而导致的法律责任。
