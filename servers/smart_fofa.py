@@ -23,6 +23,9 @@ from mcp.server.fastmcp import FastMCP
 from duckduckgo_search import DDGS
 import subprocess
 from dotenv import load_dotenv
+import ast          
+import io           
+import contextlib   
 
 # 初始化工具
 mcp = FastMCP("Jaegar-Ultimate-Final")
@@ -89,6 +92,69 @@ async def push_to_webhook(title, content):
         async with httpx.AsyncClient() as client:
             await client.post(WEBHOOK_URL, json=data, timeout=5)
     except: pass
+
+# --- [新] 安全沙盒类 ---
+class SafeSandbox:
+    """Python 原生轻量级沙盒，用于执行 AI 生成的代码"""
+    def __init__(self):
+        # 1. 白名单：只允许 AI 用这些安全的内置函数
+        self.SAFE_BUILTINS = {
+            'print': print, 'len': len, 'range': range, 'int': int, 'float': float,
+            'str': str, 'list': list, 'dict': dict, 'set': set, 'tuple': tuple,
+            'bool': bool, 'sum': sum, 'min': min, 'max': max, 'abs': abs,
+            'round': round, 'sorted': sorted, 'map': map, 'filter': filter,
+            'enumerate': enumerate, 'zip': zip, 'isinstance': isinstance,
+            'True': True, 'False': False, 'None': None
+        }
+        # 2. 黑名单：禁止 AI 自己 import 库，禁止删除对象
+        self.UNSAFE_NODES = { ast.Import, ast.ImportFrom, ast.Delete }
+        # 3. 危险函数黑名单：禁止读写文件、执行系统命令
+        self.UNSAFE_CALLS = {'open', 'eval', 'exec', '__import__', 'input', 'exit', 'quit'}
+
+    def is_safe_code(self, code):
+        """代码安检员：在运行前检查语法树"""
+        try:
+            tree = ast.parse(code)
+            for node in ast.walk(tree):
+                # 检查是否包含 import 语句
+                if type(node) in self.UNSAFE_NODES:
+                    return False, f"安全拦截: 禁止使用 {type(node).__name__} 语句"
+                # 检查是否调用了危险函数
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name):
+                        if node.func.id in self.UNSAFE_CALLS:
+                            return False, f"安全拦截: 禁止调用 {node.func.id}() 函数"
+            return True, "Safe"
+        except SyntaxError as e:
+            return False, f"语法错误: {e}"
+
+    def run(self, code, context_data=""):
+        """执行器：在受限环境中运行代码"""
+        # 第一步：安检
+        is_safe, msg = self.is_safe_code(code)
+        if not is_safe: return f"❌ {msg}"
+
+        # 第二步：准备环境 (只给它安全的库)
+        output_buffer = io.StringIO()
+        exec_globals = {"__builtins__": self.SAFE_BUILTINS}
+        # 预置一些常用的工具库，免得 AI 还要 import
+        exec_globals.update({
+            'json': json, 're': re, 'math': __import__('math'), 
+            'datetime': datetime, 'random': random,
+            'data': context_data  # 核心：把上一步的数据塞给 AI，变量名叫 data
+        })
+
+        # 第三步：运行并捕获结果
+        try:
+            with contextlib.redirect_stdout(output_buffer):
+                exec(code, exec_globals)
+            result = output_buffer.getvalue()
+            return result if result.strip() else "执行成功 (无print输出)"
+        except Exception as e:
+            return f"❌ 运行时错误: {e}"
+
+# 初始化沙盒实例
+sandbox = SafeSandbox()
 
 # --- 2. TideFinger ---
 class TideEngine:
@@ -762,6 +828,18 @@ async def step13_sqlmap_scan(url: str):
     except Exception as e:
         import traceback
         return f"SQLMap 执行异常: {e}"
+
+@mcp.tool()
+async def step14_python_interpreter(code: str, data_context: str = ""):
+    """
+    [14.代码解释器] 在沙盒中运行 Python 代码，用于数据处理或简单逻辑。
+    Args:
+        code: Python 代码字符串
+        data_context: 数据上下文 (在代码中通过变量 data 访问)
+    """
+    log("执行代码解释器...")
+    return sandbox.run(code, data_context)
+    
 
 if __name__ == "__main__":
     init_db()

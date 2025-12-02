@@ -2,16 +2,14 @@ import asyncio
 import os
 import json
 import sys
+import yaml  # [新] 导入 YAML 库
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
-# [关键] 直接导入工具函数，像 Web 端一样
-from servers.smart_fofa import (
-    step1_check_risk, step2_google_intel_rag, step3_fofa_search,
-    step4_tide_fingerprint, step5_port_scan, step6_js_finder,
-    step7_trace_real_ip, step8_check_special_routes, step9_generate_report,
-    step10_nuclei_scan, step11_hydra_crack, step12_dirsearch_scan, step13_sqlmap_scan
-)
+# 导入MCP相关的库
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from mcp.types import CallToolResult
 
 BANNER = r"""
       ██╗ █████╗ ███████╗ ██████╗  █████╗ ██████╗ 
@@ -20,139 +18,201 @@ BANNER = r"""
  ██   ██║██╔══██║██╔══╝  ██║   ██║██╔══██║██╔══██╗
  ╚█████╔╝██║  ██║███████╗╚██████╔╝██║  ██║██║  ██║
   ╚════╝ ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
-          [ Jaegar-Ultimate Direct CLI ]
+          [ Jaegar-Ultimate CLI Edition ]
 """
 
-# 配置加载
+# 加载配置
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 API_KEY = os.getenv("API_KEY")
 BASE_URL = os.getenv("BASE_URL")
 MODEL_NAME = os.getenv("MODEL_NAME")
 
 if not API_KEY:
-    print("❌ 错误：找不到 API_KEY")
+    print("❌ 错误：找不到 API_KEY，请检查 .env 文件")
     sys.exit(1)
 
 client = AsyncOpenAI(api_key=API_KEY, base_url=BASE_URL)
 
-# 工具映射表 (与 Web 端一致)
-TOOL_MAP = {
-    "step1_check_risk": step1_check_risk,
-    "step2_google_intel_rag": step2_google_intel_rag,
-    "step3_fofa_search": step3_fofa_search,
-    "step4_tide_fingerprint": step4_tide_fingerprint,
-    "step5_port_scan": step5_port_scan,
-    "step6_js_finder": step6_js_finder,
-    "step7_trace_real_ip": step7_trace_real_ip,
-    "step8_check_special_routes": step8_check_special_routes,
-    "step9_generate_report": step9_generate_report,
-    "step10_nuclei_scan": step10_nuclei_scan,
-    "step11_hydra_crack": step11_hydra_crack,
-    "step12_dirsearch_scan": step12_dirsearch_scan,
-    "step13_sqlmap_scan": step13_sqlmap_scan
-}
+# [新] 动态加载 workflows.yaml 配置
+def load_system_prompt():
+    yaml_path = os.path.join(os.path.dirname(__file__), "workflows.yaml")
+    
+    # 默认的保底 Prompt (防止配置文件丢失)
+    default_prompt = """
+    你是一个红队侦察专家 Jaegar。请根据用户需求灵活调度工具。
+    SOP: 风控->情报->资产->指纹->端口->漏洞->报告。
+    """
+    
+    if not os.path.exists(yaml_path):
+        return default_prompt
 
-# 工具定义 (Schema)
-TOOLS_SCHEMA = [
-    {"type": "function", "function": {"name": "step1_check_risk", "description": "检测风险", "parameters": {"type": "object", "properties": {"domain": {"type": "string"}}, "required": ["domain"]}}},
-    {"type": "function", "function": {"name": "step2_google_intel_rag", "description": "Google搜索", "parameters": {"type": "object", "properties": {"domain": {"type": "string"}, "intent": {"type": "string"}}, "required": ["domain"]}}},
-    {"type": "function", "function": {"name": "step3_fofa_search", "description": "FOFA搜索", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
-    {"type": "function", "function": {"name": "step4_tide_fingerprint", "description": "指纹识别", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-    {"type": "function", "function": {"name": "step5_port_scan", "description": "端口扫描", "parameters": {"type": "object", "properties": {"target_ip": {"type": "string"}}, "required": ["target_ip"]}}},
-    {"type": "function", "function": {"name": "step6_js_finder", "description": "JS挖掘", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-    {"type": "function", "function": {"name": "step7_trace_real_ip", "description": "CDN溯源", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-    {"type": "function", "function": {"name": "step8_check_special_routes", "description": "路由探测", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-    {"type": "function", "function": {"name": "step9_generate_report", "description": "生成报告", "parameters": {"type": "object", "properties": {}}}},
-    {"type": "function", "function": {"name": "step10_nuclei_scan", "description": "Nuclei漏扫", "parameters": {"type": "object", "properties": {"url": {"type": "string"}, "tags": {"type": "string"}}, "required": ["url"]}}},
-    {"type": "function", "function": {"name": "step11_hydra_crack", "description": "Hydra爆破", "parameters": {"type": "object", "properties": {"target_ip": {"type": "string"}, "service": {"type": "string"}, "port": {"type": "integer"}}, "required": ["target_ip", "service"]}}},
-    {"type": "function", "function": {"name": "step12_dirsearch_scan", "description": "Dirsearch", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-    {"type": "function", "function": {"name": "step13_sqlmap_scan", "description": "SQLMap", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}}
-]
+    try:
+        with open(yaml_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        # 拼接 Prompt
+        role = config.get('role', {})
+        prompt = f"{role.get('description', '')}\n风格：{role.get('style', '')}\n\n"
+        
+        prompt += "【工具箱能力】\n"
+        for tool in config.get('tools', []):
+            prompt += f"- {tool['name']}: {tool['desc']}\n"
+            
+        prompt += f"\n【SOP 标准作业流程】\n{config.get('workflow', '')}"
+        
+        print(f"✅ 已加载战术配置文件: workflows.yaml")
+        return prompt
+    except Exception as e:
+        print(f"⚠️ 加载 YAML 配置失败: {e}，将使用默认配置。")
+        return default_prompt
 
 async def main():
     print(BANNER)
-    print(f"🚀 直连模式已启动 | 加载工具数: {len(TOOL_MAP)}")
-    
-    system_prompt = """
-    你是一个红队侦察专家 Jaegar。请根据用户需求灵活调用以下工具：
-    1. 风控检测 (step1)
-    2. 情报搜集 (step2)
-    3. 资产搜集 (step3)
-    4. 指纹识别 (step4)
-    5. 端口扫描 (step5)
-    6. JS挖掘 (step6)
-    7. 资产溯源 (step7)
-    8. 路由探测 (step8)
-    9. 生成报告 (step9)
-    10. 漏洞扫描 (step10_nuclei_scan)
-    11. 弱口令爆破 (step11_hydra_crack)
-    12. 目录扫描 (step12_dirsearch_scan)
-    13. SQL注入 (step13_sqlmap_scan)
-    
-    SOP: 发现指纹->Nuclei; 发现端口->Hydra; 发现参数->SQLMap; 结束->报告。
-    """
-    
-    history = [{"role": "system", "content": system_prompt}]
+    print("正在初始化 Jaegar 核心系统...")
 
-    print("\n[Jaegar] 终端就绪。请输入指令 (quit退出)：")
+    try:
+        with open('mcp.json', 'r', encoding='utf-8') as f:
+            config = json.load(f)
+            server_config = config['servers'][0]
+    except Exception as e:
+        print(f"❌ 读取 mcp.json 失败: {e}")
+        return
+
+    current_env = os.environ.copy()
+    if "FOFA_KEY" not in current_env and os.getenv("FOFA_KEY"):
+        current_env["FOFA_KEY"] = os.getenv("FOFA_KEY")
     
-    while True:
-        try:
-            user_input = input("\n[User] > ").strip()
-        except EOFError: break
-        if user_input.lower() in ['quit', 'exit']: break
-        if not user_input: continue
+    # 尝试传递 WEBHOOK_URL
+    if os.getenv("WEBHOOK_URL"):
+        current_env["WEBHOOK_URL"] = os.getenv("WEBHOOK_URL")
 
-        history.append({"role": "user", "content": user_input})
-        print("(思考中...)")
+    server_params = StdioServerParameters(
+        command=server_config['params']['command'],
+        args=server_config['params']['args'],
+        env={**current_env, **server_config['params']['env']}
+    )
 
-        try:
-            response = await client.chat.completions.create(
-                model=MODEL_NAME, messages=history, tools=TOOLS_SCHEMA
-            )
-            msg = response.choices[0].message
+    print(f"正在连接工具箱: {server_config['name']} ...")
+    
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
             
-            if msg.tool_calls:
-                history.append(msg)
-                for tool_call in msg.tool_calls:
-                    func_name = tool_call.function.name
-                    args = json.loads(tool_call.function.arguments)
-                    
-                    print(f"--> [执行] {func_name} {args} ...")
-                    
-                    if func_name in TOOL_MAP:
-                        # 直接本地调用，不走 MCP 协议
+            tools_list = await session.list_tools()
+            tool_names = [t.name for t in tools_list.tools]
+            print(f"✅ 成功连接！已加载 {len(tool_names)} 个核武级工具：")
+            print(f"   {', '.join(tool_names)}\n")
+            
+            # [修改] 这里不再硬编码，而是调用函数加载
+            system_prompt = load_system_prompt()
+            
+            history = [{"role": "system", "content": system_prompt}]
+
+            print("==============================================")
+            print("我是 Jaegar 命令行终端。请输入指令：")
+            print("例：对 testphp.vulnweb.com 进行全流程侦察")
+            print("输入 'quit' 结束程序")
+            print("==============================================\n")
+
+            while True:
+                try:
+                    user_input = input("\n[Jaegar] > ").strip()
+                except EOFError: break
+                
+                if user_input.lower() in ['quit', 'exit', '退出']:
+                    break
+                
+                if not user_input: continue
+
+                history.append({"role": "user", "content": user_input})
+                print("\n(正在思考作战方案...)\n")
+
+                available_tools = [{
+                    "type": "function",
+                    "function": {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.inputSchema
+                    }
+                } for tool in tools_list.tools]
+
+                try:
+                    response = await client.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=history,
+                        tools=available_tools
+                    )
+                except Exception as e:
+                    print(f"❌ API请求出错: {e}")
+                    continue
+
+                message = response.choices[0].message
+                
+                if message.tool_calls:
+                    history.append(message) 
+
+                    for tool_call in message.tool_calls:
+                        func_name = tool_call.function.name
                         try:
-                            result = await TOOL_MAP[func_name](**args)
-                            # 截断过长输出，防止刷屏
-                            print(f"<-- [结果] {str(result)[:200]}...")
+                            func_args = json.loads(tool_call.function.arguments)
+                        except:
+                            func_args = {}
+                        
+                        print(f"--> [执行] {func_name} | 参数: {func_args}")
+
+                        try:
+                            # 设置 10 分钟超时，防止 Nuclei/Ffuf 卡死
+                            result = await asyncio.wait_for(
+                                session.call_tool(func_name, arguments=func_args),
+                                timeout=600 
+                            )
+                            
+                            tool_output = ""
+                            if isinstance(result, CallToolResult):
+                                for content in result.content:
+                                    if content.type == 'text':
+                                        tool_output += content.text
+                            else:
+                                tool_output = str(result)
+                            
+                            # 打印预览
+                            preview = tool_output[:200].replace('\n', ' ') + "..." if len(tool_output) > 200 else tool_output
+                            print(f"<-- [返回] {preview}\n")
+
                             history.append({
-                                "role": "tool", 
-                                "tool_call_id": tool_call.id, 
-                                "content": str(result)
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": tool_output
+                            })
+
+                        except asyncio.TimeoutError:
+                            print(f"❌ 工具 {func_name} 执行超时！")
+                            history.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": "Error: Tool execution timed out."
                             })
                         except Exception as e:
-                            print(f"❌ 执行错误: {e}")
+                            print(f"❌ 工具执行出错: {e}")
                             history.append({
-                                "role": "tool", 
-                                "tool_call_id": tool_call.id, 
-                                "content": f"Error: {e}"
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": f"Error: {str(e)}"
                             })
-                    else:
-                        print(f"❌ 未找到工具: {func_name}")
 
-                # 获取总结
-                final_res = await client.chat.completions.create(model=MODEL_NAME, messages=history)
-                ai_reply = final_res.choices[0].message.content
-            else:
-                ai_reply = msg.content
+                    final_response = await client.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=history
+                    )
+                    ai_reply = final_response.choices[0].message.content
+                else:
+                    ai_reply = message.content
 
-            print(f"\n[Jaegar]:\n{ai_reply}")
-            history.append({"role": "assistant", "content": ai_reply})
-
-        except Exception as e:
-            print(f"❌ API 错误: {e}")
+                print(f"\n[Jaegar]:\n{ai_reply}")
+                history.append({"role": "assistant", "content": ai_reply})
 
 if __name__ == "__main__":
-    try: asyncio.run(main())
-    except KeyboardInterrupt: print("\nBye.")
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n程序已安全退出。")

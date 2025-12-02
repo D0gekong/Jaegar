@@ -1,4 +1,5 @@
 import streamlit as st
+import yaml
 import sqlite3
 import pandas as pd
 import os
@@ -15,7 +16,7 @@ from servers.smart_fofa import (
     step1_check_risk, step2_google_intel_rag, step3_fofa_search,
     step4_tide_fingerprint, step5_port_scan, step6_js_finder,
     step7_trace_real_ip, step8_check_special_routes, step9_generate_report,
-    step10_nuclei_scan, step11_hydra_crack, step12_dirsearch_scan, step13_sqlmap_scan
+    step10_nuclei_scan, step11_hydra_crack, step12_dirsearch_scan, step13_sqlmap_scan,step14_python_interpreter
 )
 
 st.set_page_config(page_title="Jaegar AI 终端", layout="wide", page_icon="🦅")
@@ -26,28 +27,39 @@ BASE_URL = os.getenv("BASE_URL")
 MODEL_NAME = os.getenv("MODEL_NAME")
 DB_PATH = os.path.join(os.path.dirname(__file__), "assets.db")
 
+def load_workflow_config():
+    yaml_path = os.path.join(os.path.dirname(__file__), "workflows.yaml")
+    try:
+        with open(yaml_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+            
+        # 动态拼接 System Prompt
+        # 1. 角色定义
+        prompt = f"{config['role']['description']} 你的风格是：{config['role']['style']}\n\n"
+        
+        # 2. 工具能力
+        prompt += "【工具箱能力说明】\n"
+        for t in config['tools']:
+            prompt += f"- {t['name']}: {t['desc']}\n"
+            
+        # 3. SOP 流程
+        prompt += f"\n【SOP 标准作业流程】\n{config['workflow']}"
+        
+        return prompt, config['role']['name']
+    except Exception as e:
+        st.error(f"加载 workflows.yaml 失败: {e}")
+        # 降级方案
+        return "你是一个红队专家...", "Jaegar"
+
 if "client" not in st.session_state:
     st.session_state.client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
 if "messages" not in st.session_state:
+    system_prompt, bot_name = load_workflow_config()
+    
     st.session_state.messages = [
-        {"role": "system", "content": """
-        你是一个红队侦察专家 Jaegar。你拥有以下工具：
-        1. 风控检测 (step1_check_risk)
-        2. 情报搜集 (step2_google_intel_rag)
-        3. 资产搜集 (step3_fofa_search)
-        4. 指纹识别 (step4_tide_fingerprint)
-        5. 端口扫描 (step5_port_scan)
-        6. JS挖掘 (step6_js_finder)
-        7. 资产溯源 (step7_trace_real_ip)
-        8. 路由探测 (step8_check_special_routes)
-        9. 生成报告 (step9_generate_report)
-        10. 漏洞扫描 (step10_nuclei_scan) - [核心] 指纹识别后使用
-        11. 弱口令爆破 (step11_hydra_crack) - [攻击] 发现端口后使用
-        12. 目录扫描 (step12_dirsearch_scan) - [深度] 暴力枚举
-        13. SQL注入 (step13_sqlmap_scan) - [核武] 发现参数后使用
-        """},
-        {"role": "assistant", "content": "🦅 Jaegar 终端已就绪。"}
+        {"role": "system", "content": system_prompt},
+        {"role": "assistant", "content": f"🦅 {bot_name} (SOP配置版) 已就绪。请下达指令。"}
     ]
 
 TOOLS_SCHEMA = [
@@ -63,7 +75,8 @@ TOOLS_SCHEMA = [
     {"type": "function", "function": {"name": "step10_nuclei_scan", "description": "Nuclei", "parameters": {"type": "object", "properties": {"url": {"type": "string"}, "tags": {"type": "string"}}, "required": ["url"]}}},
     {"type": "function", "function": {"name": "step11_hydra_crack", "description": "Hydra", "parameters": {"type": "object", "properties": {"target_ip": {"type": "string"}, "service": {"type": "string"}, "port": {"type": "integer"}}, "required": ["target_ip", "service"]}}},
     {"type": "function", "function": {"name": "step12_dirsearch_scan", "description": "Dirsearch", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
-    {"type": "function", "function": {"name": "step13_sqlmap_scan", "description": "SQLMap", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}}
+    {"type": "function", "function": {"name": "step13_sqlmap_scan", "description": "SQLMap", "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}}},
+    {"type": "function", "function": {"name": "step14_python_interpreter", "description": "代码解释器", "parameters": {"type": "object", "properties": {"code": {"type": "string"}, "data_context": {"type": "string"}}, "required": ["code"]}}}
 ]
 
 TOOL_MAP = {
@@ -79,7 +92,8 @@ TOOL_MAP = {
     "step10_nuclei_scan": step10_nuclei_scan,
     "step11_hydra_crack": step11_hydra_crack,
     "step12_dirsearch_scan": step12_dirsearch_scan,
-    "step13_sqlmap_scan": step13_sqlmap_scan
+    "step13_sqlmap_scan": step13_sqlmap_scan,
+    "step14_python_interpreter": step14_python_interpreter
 }
 
 def load_data():
